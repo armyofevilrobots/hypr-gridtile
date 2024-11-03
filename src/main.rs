@@ -18,36 +18,19 @@ use winit::raw_window_handle::DrmWindowHandle;
 use winit::window::WindowBuilder;
 
 fn main() -> hyprland::Result<()> {
-    /*
-        let args: Vec<_> = std::env::args().skip(1).collect();
-
-        if args.len() == 0 {
-            panic!("You have to specify client, workspace or monitor")
-        }
-
-        match args[0].as_str() {
-            "client" => println!("{:#?}", Client::get_active()?),
-            "monitor" => println!("{:#?}", Monitor::get_active()?),
-            "workspace" => println!("{:#?}", Workspace::get_active()?),
-            "animations" => println!("{:#?}", Animations::get()?),
-            "binds" => println!("{:#?}", Binds::get()?),
-            "clients" => println!("{:#?}", Clients::get()?),
-            "monitors" => println!("{:#?}", Monitors::get()?),
-            "workspaces" => println!("{:#?}", Workspaces::get()?),
-            _ => println!("Specify one of client(s), monitor(s) or workspace(s)")
-        };
-    */
 
     // Get the currently active client...
     let current = Client::get_active()?;
     let monitor = Monitor::get_active()?;
+    let margin = 16;
+    let waybar_height = 48;
 
     // Now we create a popup window that'll allow us to resize/position.
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
         .with_decorations(false)
         .with_transparent(true)
-        .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)))
+        // .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)))
         .build(&event_loop).unwrap();
     let context = Context::new(&window).unwrap();
     let mut surface = Surface::new(&context, &window).unwrap();
@@ -65,14 +48,10 @@ fn main() -> hyprland::Result<()> {
                                 Some(WindowIdentifier::Address(self_client.address.clone()))
                             )
                                 .expect("Failed to float picker window.");
-                            dispatch!(ToggleFullscreen, FullscreenType::Maximize).expect("failed to fullscreen...");
+                            // dispatch!(ToggleFullscreen, FullscreenType::Maximize).expect("failed to fullscreen...");
                         }
                     },
                     WindowEvent::CloseRequested => {
-                        // Resize eh?!
-                        
-
-                        
                         control_flow.exit();
                     }
                     WindowEvent::RedrawRequested => {
@@ -135,10 +114,11 @@ fn main() -> hyprland::Result<()> {
         
         // Apply the position to the current client
 
-        let new_width = monitor.width/2;
-        let new_height = monitor.height;
-        let left_ofs = monitor.x as u16 + monitor.width/4;
-        let top_ofs = monitor.y as u16 + 0;
+        let new_width = monitor.width/2-(margin);
+        let new_height = monitor.height-(margin*2)-waybar_height;
+        let left_ofs = monitor.x as u16 + monitor.width/4+margin;
+        let top_ofs = monitor.y as u16 + margin+waybar_height;
+        println!("W/H/L/T: {}/{}/{}/{}", new_width, new_height, left_ofs, top_ofs);
         Dispatch::call(
             ResizeWindowPixel(dispatch::Position::Exact(new_width.try_into().unwrap(),
                                                         new_height.try_into().unwrap()),
@@ -146,7 +126,8 @@ fn main() -> hyprland::Result<()> {
         ).expect("Should be resized naow.");
         Dispatch::call(
             MoveWindowPixel(dispatch::Position::Exact(left_ofs.try_into().unwrap(),
-                                                        top_ofs.try_into().unwrap()),
+                                                        top_ofs.try_into().unwrap()
+            ),
                                          window_id.clone())
         ).expect("Should be resized naow.");
 
