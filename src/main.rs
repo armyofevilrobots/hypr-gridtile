@@ -1,6 +1,7 @@
 use hyprland::{
     data::{Animations, Binds, Client, Clients, Monitor, Monitors, Workspace, Workspaces},
     dispatch::WindowIdentifier,
+    keyword::{OptionValue, Keyword},
     shared::{HyprData, HyprDataActive, HyprDataActiveOptional},
 };
 
@@ -24,6 +25,14 @@ fn main() -> hyprland::Result<()> {
     let monitor = Monitor::get_active()?;
     let margin = 16;
     let waybar_height = 48;
+
+    let border_width:u16 = match Keyword::get("general:border_size")?.value{
+        OptionValue::Int(border) => border as u16,
+        OptionValue::Float(border) => border as u16,
+        _ => 0
+    };
+
+    println!("BORDER WIDTH: {}", border_width);
 
     // Now we create a popup window that'll allow us to resize/position.
     let event_loop = EventLoop::new().unwrap();
@@ -115,7 +124,7 @@ fn main() -> hyprland::Result<()> {
         // Apply the position to the current client
 
         let new_width = monitor.width/2-(margin);
-        let new_height = monitor.height-(margin*2)-waybar_height;
+        let new_height = monitor.height-(margin*2)-waybar_height-border_width*2;
         let left_ofs = monitor.x as u16 + monitor.width/4+margin;
         let top_ofs = monitor.y as u16 + margin+waybar_height;
         println!("W/H/L/T: {}/{}/{}/{}", new_width, new_height, left_ofs, top_ofs);
