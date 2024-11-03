@@ -1,0 +1,10 @@
+[package]
+name = "hypr-tilegrid"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hyprland = "0.4.0-beta.1"
+softbuffer = "0.4.6"
+tiny-skia = "0.11.4"
+winit = "0.29.0"
