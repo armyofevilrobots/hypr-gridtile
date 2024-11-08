@@ -1,27 +1,21 @@
+use egui::{Color32, Style, Vec2, WidgetText};
+use egui::{FontFamily, FontId, RichText, TextStyle};
+use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
+use egui_overlay::EguiOverlay;
 use egui_window_glfw_passthrough::glfw::{Action, WindowEvent};
+use hyprland::dispatch;
+use hyprland::dispatch::Dispatch;
+use hyprland::dispatch::{DispatchType, DispatchType::*};
 use hyprland::{
-    data::{Animations, Binds, Client, Clients, Monitor, Monitors, Workspace, Workspaces},
+    data::{Client, Monitor},
     dispatch::WindowIdentifier,
     keyword::{Keyword, OptionValue},
-    shared::{HyprData, HyprDataActive, HyprDataActiveOptional},
+    shared::{HyprDataActive, HyprDataActiveOptional},
 };
 use image;
+use std::collections::BTreeMap;
+use FontFamily::{Monospace, Proportional};
 
-use egui::epaint::WHITE_UV;
-use egui::{Color32, Vec2};
-use egui_overlay::EguiOverlay;
-use hyprland::dispatch;
-use hyprland::dispatch::DispatchType::*;
-use hyprland::dispatch::{
-    Corner, Dispatch, DispatchType, FullscreenType, WorkspaceIdentifierWithSpecial,
-};
-// #[cfg(feature = "three_d")]
-use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
-use winit::event::KeyEvent;
-// #[cfg(feature = "wgpu")]
-// use egui_render_wgpu::WgpuBackend as DefaultGfxBackend;
-// #[cfg(not(any(feature = "three_d", feature = "wgpu")))]
-// compile_error!("you must enable either `three_d` or `wgpu` feature to run this example");
 fn main() {
     use tracing_subscriber::{fmt, prelude::*, EnvFilter};
     // if RUST_LOG is not set, we will use the following filters
@@ -101,11 +95,24 @@ impl EguiOverlay for HelloWorld {
         _default_gfx_backend: &mut DefaultGfxBackend, //DefaultGfxBackend,
         glfw_backend: &mut egui_window_glfw_passthrough::GlfwBackend,
     ) {
+        egui_context.all_styles_mut(|style: &mut Style| {
+            // let text_styles: BTreeMap<TextStyle, FontId> = [
+            //     (TextStyle::Button, FontId::new(25.0, Proportional)),
+            //     (TextStyle::Heading, FontId::new(25.0, Proportional)),
+            //     (TextStyle::Body, FontId::new(20.0, Proportional)),
+            //     (TextStyle::Monospace, FontId::new(12.0, Monospace)),
+            //     (TextStyle::Small, FontId::new(8.0, Proportional)),
+            // ]
+            // .into();
+            // style.text_styles = text_styles.clone();
+            // style.spacing.slider_rail_height=16.;
+            // style.text_styles.insert(TextStyle::Button, FontId::new(16.0, Proportional));
+        });
         let evs: Vec<WindowEvent> = glfw_backend.frame_events.clone();
         if evs.len() > 0 {
             // println!("EVS: {:?}", &evs);
             for ev in evs {
-                if let WindowEvent::Key(key, code, Action::Release, _) = ev {
+                if let WindowEvent::Key(key, _code, Action::Release, _) = ev {
                     // println!("Matched key event with {:?}:{:?} as str ", key, key);
                     if let Some(name) = key.get_name() {
                         // println!("That's a {}", name);
@@ -126,11 +133,6 @@ impl EguiOverlay for HelloWorld {
         if self.frame == 0 {
             let icon = image::load_from_memory(ICON_BYTES).unwrap().to_rgba8();
             {
-                // if you enable `image` feature of glfw-passthrough crate, you can just use this
-                // glfw_backend.window.set_icon(vec![icon]);
-
-                // alternative api
-                // useful when you don't want to enable image feature of glfw (maybe it pulls an older version of image crate leading to duplicate image crates in your dependency tree)
                 let pixels = icon
                     .pixels()
                     .map(|pixel| u32::from_le_bytes(pixel.0))
@@ -155,19 +157,11 @@ impl EguiOverlay for HelloWorld {
                 fill: egui::Color32::TRANSPARENT,
                 inner_margin: egui::Margin::same(16.0),
                 outer_margin: egui::Margin::same(16.0),
-
                 ..Default::default()
             })
             .show(egui_context, |ui| {
-                // ui.set_width(300.0);
                 self.frame += 1;
-                // ui.label(format!("current frame number: {}", self.frame));
 
-                // sometimes, you want to see the borders to understand where the overlay is.
-                let mut borders = glfw_backend.window.is_decorated();
-                if ui.checkbox(&mut borders, "window borders").changed() {
-                    glfw_backend.window.set_decorated(borders);
-                }
                 ui.horizontal(|ui| {
                     ui.label("Columns:");
                     ui.add(egui::Slider::new(&mut self.columns, 1..=9u16));
@@ -175,30 +169,18 @@ impl EguiOverlay for HelloWorld {
                     ui.add(egui::Slider::new(&mut self.rows, 1..=3u16));
                 });
 
-                /*
-                ui.label(format!(
-                    "pixels_per_virtual_unit: {}",
-                    glfw_backend.physical_pixels_per_virtual_unit
-                ));
-                ui.label(format!("window scale: {}", glfw_backend.scale));
-                ui.label(format!("cursor pos x: {}", glfw_backend.cursor_pos[0]));
-                ui.label(format!("cursor pos y: {}", glfw_backend.cursor_pos[1]));
-
-                ui.label(format!(
-                    "passthrough: {}",
-                    glfw_backend.window.is_mouse_passthrough()
-                ));
-                */
-
                 let (x0, y0, x1, y1) = calc_rowcol_bounds(&self.clicks);
 
                 let button_width = (fbsize.0 as f32 - 32.) / self.columns as f32;
                 let button_height = (fbsize.1 as f32 - 64.) / self.rows as f32;
+
                 for row in 0..self.rows as usize {
                     ui.horizontal(|ui| {
                         for col in 0..self.columns as usize {
-                            let mut button = egui::Button::new(self.keeb[row][col].clone())
+                            let mut button = egui::Button::new(WidgetText::RichText(RichText::new(self.keeb[row][col].clone()).size(32.)))
+                                
                                 .min_size(Vec2::new(button_width - 16., button_height - 16.));
+                            
                             let button = if col >= x0 && col <= x1 && row >= y0 && row <= y1 {
                                 button.fill(Color32::from_rgb(255, 255, 255))
                             } else {
@@ -217,7 +199,6 @@ impl EguiOverlay for HelloWorld {
                 if self.clicks.len() >= 2 {
                     let (x0, y0, x1, y1) = calc_rowcol_bounds(&self.clicks);
                     // Set the window position and bail out.
-                    // _default_gfx_backend.
                     let gaps_in = self.margin;
                     let gaps_out = self.margin;
                     let col_width = (self.monitor.width - 2 * gaps_out) / self.columns;
@@ -247,10 +228,6 @@ impl EguiOverlay for HelloWorld {
                     if y1 as u16 == self.rows {
                         new_height -= gaps_out;
                     }
-                    // println!(
-                    //     "MOVE TO X{},Y{} : W{},H{}",
-                    //     left_ofs, top_ofs, new_width, new_height
-                    // );
 
                     // Force the current client to float.
                     let window_id = WindowIdentifier::Address(self.target_client.address.clone());
