@@ -5,6 +5,7 @@ use hyprland::{
     keyword::{Keyword, OptionValue},
     shared::{HyprData, HyprDataActive, HyprDataActiveOptional},
 };
+use image;
 
 use egui::epaint::WHITE_UV;
 use egui::{Color32, Vec2};
@@ -64,7 +65,7 @@ fn main() {
         waybar_height,
     });
 }
-// const ICON_BYTES: &[u8] = include_bytes!("../../kitty_icon.png");
+const ICON_BYTES: &[u8] = include_bytes!("../resources/hypr-gridtile.png");
 pub struct HelloWorld {
     pub frame: u64,
     pub columns: u16,
@@ -100,19 +101,18 @@ impl EguiOverlay for HelloWorld {
         _default_gfx_backend: &mut DefaultGfxBackend, //DefaultGfxBackend,
         glfw_backend: &mut egui_window_glfw_passthrough::GlfwBackend,
     ) {
-
         let evs: Vec<WindowEvent> = glfw_backend.frame_events.clone();
-        if evs.len()>0 {
-            println!("EVS: {:?}", &evs);
-            for ev in evs{
-                if let WindowEvent::Key(key, code, Action::Release, _) = ev{
-                    println!("Matched key event with {:?}:{:?} as str ", key, key);
-                    if let Some(name) = key.get_name(){
-                        println!("That's a {}", name);
+        if evs.len() > 0 {
+            // println!("EVS: {:?}", &evs);
+            for ev in evs {
+                if let WindowEvent::Key(key, code, Action::Release, _) = ev {
+                    // println!("Matched key event with {:?}:{:?} as str ", key, key);
+                    if let Some(name) = key.get_name() {
+                        // println!("That's a {}", name);
                         // OK, brute force which key it is.
                         for row in 0..self.rows as usize {
                             for col in 0..self.columns as usize {
-                                if self.keeb[row][col].to_uppercase() == name.to_uppercase(){
+                                if self.keeb[row][col].to_uppercase() == name.to_uppercase() {
                                     self.clicks.push((col, row))
                                 }
                             }
@@ -120,19 +120,17 @@ impl EguiOverlay for HelloWorld {
                     }
                 }
             }
-
         }
 
         // first frame logic
         if self.frame == 0 {
-            // let icon = image::load_from_memory(ICON_BYTES).unwrap().to_rgba8();
+            let icon = image::load_from_memory(ICON_BYTES).unwrap().to_rgba8();
             {
                 // if you enable `image` feature of glfw-passthrough crate, you can just use this
                 // glfw_backend.window.set_icon(vec![icon]);
 
                 // alternative api
                 // useful when you don't want to enable image feature of glfw (maybe it pulls an older version of image crate leading to duplicate image crates in your dependency tree)
-                /*
                 let pixels = icon
                     .pixels()
                     .map(|pixel| u32::from_le_bytes(pixel.0))
@@ -143,7 +141,6 @@ impl EguiOverlay for HelloWorld {
                     pixels,
                 };
                 glfw_backend.window.set_icon_from_pixels(vec![icon]);
-                */
             }
         }
         let fbsize = glfw_backend.window.get_framebuffer_size();
@@ -229,17 +226,31 @@ impl EguiOverlay for HelloWorld {
                         - self.waybar_height
                         - self.border_width)
                         / self.rows;
-                    let new_width = (((x1 + 1) - x0) as u16 * col_width);
-                    let new_height = ((y1 + 1) - y0) as u16 * row_height;
-                    let left_ofs = self.monitor.x as u16 + gaps_out + (x0 as u16 * col_width);
-                    let top_ofs = self.monitor.y as u16
+                    let mut new_width = (((x1 + 1) - x0) as u16 * col_width) - gaps_in;
+                    let mut new_height = ((y1 + 1) - y0) as u16 * row_height - gaps_in;
+                    let mut left_ofs = self.monitor.x as u16 + gaps_out + (x0 as u16 * col_width);
+                    let mut top_ofs = self.monitor.y as u16
                         + gaps_out
                         + self.waybar_height
                         + (y0 as u16 * row_height);
-                    println!(
-                        "MOVE TO X{},Y{} : W{},H{}",
-                        left_ofs, top_ofs, new_width, new_height
-                    );
+                    if x0 > 0 {
+                        left_ofs += gaps_in;
+                        new_width -= gaps_in;
+                    }
+                    if y0 > 0 {
+                        top_ofs += gaps_in;
+                        new_height -= gaps_in;
+                    }
+                    if x1 as u16 == self.columns {
+                        new_width -= gaps_out;
+                    }
+                    if y1 as u16 == self.rows {
+                        new_height -= gaps_out;
+                    }
+                    // println!(
+                    //     "MOVE TO X{},Y{} : W{},H{}",
+                    //     left_ofs, top_ofs, new_width, new_height
+                    // );
 
                     // Force the current client to float.
                     let window_id = WindowIdentifier::Address(self.target_client.address.clone());
@@ -255,7 +266,7 @@ impl EguiOverlay for HelloWorld {
                         ),
                         window_id.clone(),
                     ))
-                        .expect("Should be resized naow.");
+                    .expect("Should be resized naow.");
                     Dispatch::call(ResizeWindowPixel(
                         dispatch::Position::Exact(
                             new_width.try_into().unwrap(),
