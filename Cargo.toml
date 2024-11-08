@@ -1,6 +1,6 @@
 [package]
-name = "hypr-tilegrid"
-version = "0.1.0"
+name = "hypr-gridtile"
+version = "0.1.2"
 edition = "2021"
 
 [dependencies]
