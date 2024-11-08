@@ -19,10 +19,10 @@ jobs:
       # pull-requests: write
       # repository-projects: write
     steps:
-    # - uses: awalsh128/cache-apt-pkgs-action@latest
-    #   with:
-    #     packages: libasound2-dev libasound2-data libasound2
-    #     version: 1.0
+    - uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: libxrandr-dev libxrandr2
+        version: 1.0
     - uses: actions/checkout@v4
     - name: Run tests
       run: cargo test --verbose util
