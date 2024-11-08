@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+egui = "0.29.1"
+egui_overlay = {version="0.9.0"}
+egui_render_wgpu = "0.9.0"
+egui_window_glfw_passthrough = "0.9.0"
 hyprland = "0.4.0-beta.1"
 softbuffer = "0.4.6"
 tiny-skia = "0.11.4"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 winit = "0.29.0"
