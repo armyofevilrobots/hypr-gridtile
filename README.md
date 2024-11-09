@@ -3,6 +3,8 @@ hypr-gridtile
 
 ![Build Status](https://github.com/armyofevilrobots/hypr-gridtile/actions/workflows/rust.yml/badge.svg)
 
+Have you caught the Hyprland bug? Well then I have an additional gimmick for you!
+
 ![](resources/hypr-gridtile-demo.webp)
 
 This is a useful little utility which tiles floating windows. Yes, that sounds
