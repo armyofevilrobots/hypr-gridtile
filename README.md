@@ -43,16 +43,17 @@ Status
 Currently, this little project has had a grand total of MAYBE 4 hours of work,
 so it's missing a ton of features that I'm gonna backfill over the next few days:
 
- 1. Persistent configuration. It will remember how many rows and columns your
-    favourite grid has.
-    1. I might even add customization to allow alternate keyboard layouts, if
-       anybody ever actually requests it.
+ 1. ~Persistent configuration. It will remember how many rows and columns your
+    favourite grid has.~ DONE!
+    1. ~I might even add customization to allow alternate keyboard layouts, if
+       anybody ever actually requests it.~ DONE! This turned out to be a 
+       doddle, so I just hacked it in there.
  2. Custom theming. We're using Hyprland, it's kinda the whole point. I'll 
     be figuring out how to grab the stylesheets and apply a matching style
     to the egui window.
  3. Retries. Some apps behave weird on resize, and end up only making it part
     way to the desired location. I want to keep trying because it usually
-    can be forced to converge.
+    can be forced to converge. Kinda-done; I just try twice by default.
  4. ~hypr-bufferwin -> I'll add a dummy transparent window app that can be
     used for those times when you DO want full tiling, but have a space you
     want empty to move the window over a bit. When you have a 43" monitor,

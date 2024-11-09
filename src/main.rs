@@ -1,5 +1,6 @@
-use egui::{Color32, Vec2, WidgetText};
+use config::AppConfig;
 use egui::RichText;
+use egui::{Color32, Vec2, WidgetText};
 use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
 use egui_overlay::EguiOverlay;
 use egui_window_glfw_passthrough::glfw::{Action, Key, WindowEvent};
@@ -12,8 +13,17 @@ use hyprland::{
     keyword::{Keyword, OptionValue},
     shared::{HyprDataActive, HyprDataActiveOptional},
 };
-// use std::collections::BTreeMap;
-// use FontFamily::{Monospace, Proportional};
+
+mod config;
+
+pub struct AppState {
+    pub frame: u64,
+    pub config: config::AppConfig,
+    pub clicks: Vec<(usize, usize)>,
+    pub target_client: Client,
+    pub monitor: Monitor,
+}
+
 
 fn main() {
     use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -22,20 +32,13 @@ fn main() {
         .with(fmt::layer())
         .with(
             EnvFilter::try_from_default_env()
-                .unwrap_or(EnvFilter::new("debug,wgpu=warn,naga=warn")),
+                .unwrap_or(EnvFilter::new("warn,wgpu=warn,naga=warn")),
         )
         .init();
-    let keeb = Vec::from([
-        "QWERTYUIOP".chars().map(|c| c.to_string()).collect(),
-        "ASDFGHJKL;".chars().map(|c| c.to_string()).collect(),
-        "ZXCVBNM,.".chars().map(|c| c.to_string()).collect(),
-    ]);
     let current = Client::get_active()
         .expect("Failed to get the target client window!")
         .expect("No current valid client window.");
     let monitor = Monitor::get_active().expect("Failed to get the active monitor");
-    let margin = 15;
-    let waybar_height = 48;
 
     let border_width: u16 = match Keyword::get("general:border_size")
         .expect("Failed to get hyprland border settings")
@@ -45,33 +48,23 @@ fn main() {
         OptionValue::Float(border) => border as u16,
         _ => 5,
     };
-    egui_overlay::start(AppState {
+
+    let appconfig = AppConfig::load().expect("Failed to load/generate config.");
+
+    let app_state = AppState {
         frame: 0,
-        columns: 4,
-        rows: 2,
-        keeb,
+        config: appconfig,
         clicks: Vec::new(),
         target_client: current,
         monitor,
-        border_width,
-        margin,
-        waybar_height,
-    });
+    };
+    egui_overlay::start(app_state);
+    
 }
+
 const ICON_BYTES: &[u8] = include_bytes!("../resources/hypr-gridtile.png");
 
-pub struct AppState {
-    pub frame: u64,
-    pub columns: u16,
-    pub rows: u16,
-    pub keeb: Vec<Vec<String>>,
-    pub clicks: Vec<(usize, usize)>,
-    pub target_client: Client,
-    pub monitor: Monitor,
-    pub border_width: u16,
-    pub margin: u16,
-    pub waybar_height: u16,
-}
+
 
 fn calc_rowcol_bounds(clicks: &Vec<(usize, usize)>) -> (usize, usize, usize, usize) {
     if clicks.is_empty() {
@@ -96,17 +89,17 @@ impl EguiOverlay for AppState {
         glfw_backend: &mut egui_window_glfw_passthrough::GlfwBackend,
     ) {
         // egui_context.all_styles_mut(|style: &mut Style| {
-            // let text_styles: BTreeMap<TextStyle, FontId> = [
-            //     (TextStyle::Button, FontId::new(25.0, Proportional)),
-            //     (TextStyle::Heading, FontId::new(25.0, Proportional)),
-            //     (TextStyle::Body, FontId::new(20.0, Proportional)),
-            //     (TextStyle::Monospace, FontId::new(12.0, Monospace)),
-            //     (TextStyle::Small, FontId::new(8.0, Proportional)),
-            // ]
-            // .into();
-            // style.text_styles = text_styles.clone();
-            // style.spacing.slider_rail_height=16.;
-            // style.text_styles.insert(TextStyle::Button, FontId::new(16.0, Proportional));
+        // let text_styles: BTreeMap<TextStyle, FontId> = [
+        //     (TextStyle::Button, FontId::new(25.0, Proportional)),
+        //     (TextStyle::Heading, FontId::new(25.0, Proportional)),
+        //     (TextStyle::Body, FontId::new(20.0, Proportional)),
+        //     (TextStyle::Monospace, FontId::new(12.0, Monospace)),
+        //     (TextStyle::Small, FontId::new(8.0, Proportional)),
+        // ]
+        // .into();
+        // style.text_styles = text_styles.clone();
+        // style.spacing.slider_rail_height=16.;
+        // style.text_styles.insert(TextStyle::Button, FontId::new(16.0, Proportional));
         // });
         let evs: Vec<WindowEvent> = glfw_backend.frame_events.clone();
         if !evs.is_empty() {
@@ -118,9 +111,10 @@ impl EguiOverlay for AppState {
                 }
                 if let WindowEvent::Key(key, _code, Action::Release, _) = ev {
                     if let Some(name) = key.get_name() {
-                        for row in 0..self.rows as usize {
-                            for col in 0..self.columns as usize {
-                                if self.keeb[row][col].to_uppercase() == name.to_uppercase() {
+                        for row in 0..self.config.rows as usize {
+                            for col in 0..self.config.columns as usize {
+                                if self.config.keeb[row][col].to_uppercase() == name.to_uppercase()
+                                {
                                     self.clicks.push((col, row))
                                 }
                             }
@@ -166,21 +160,21 @@ impl EguiOverlay for AppState {
 
                 ui.horizontal(|ui| {
                     ui.label("Columns:");
-                    ui.add(egui::Slider::new(&mut self.columns, 1..=9u16));
+                    ui.add(egui::Slider::new(&mut self.config.columns, 1..=9u16));
                     ui.label("Rows:");
-                    ui.add(egui::Slider::new(&mut self.rows, 1..=3u16));
+                    ui.add(egui::Slider::new(&mut self.config.rows, 1..=3u16));
                 });
 
                 let (x0, y0, x1, y1) = calc_rowcol_bounds(&self.clicks);
 
-                let button_width = (fbsize.0 as f32 - 32.) / self.columns as f32;
-                let button_height = (fbsize.1 as f32 - 64.) / self.rows as f32;
+                let button_width = (fbsize.0 as f32 - 32.) / self.config.columns as f32;
+                let button_height = (fbsize.1 as f32 - 64.) / self.config.rows as f32;
 
-                for row in 0..self.rows as usize {
+                for row in 0..self.config.rows as usize {
                     ui.horizontal(|ui| {
-                        for col in 0..self.columns as usize {
+                        for col in 0..self.config.columns as usize {
                             let button = egui::Button::new(WidgetText::RichText(
-                                RichText::new(self.keeb[row][col].clone()).size(32.),
+                                RichText::new(self.config.keeb[row][col].clone()).size(32.),
                             ))
                             .min_size(Vec2::new(button_width - 16., button_height - 16.));
 
@@ -202,20 +196,20 @@ impl EguiOverlay for AppState {
                 if self.clicks.len() >= 2 {
                     let (x0, y0, x1, y1) = calc_rowcol_bounds(&self.clicks);
                     // Set the window position and bail out.
-                    let gaps_in = self.margin;
-                    let gaps_out = self.margin;
-                    let col_width = (self.monitor.width - 2 * gaps_out) / self.columns;
+                    let gaps_in = self.config.margin;
+                    let gaps_out = self.config.margin;
+                    let col_width = (self.monitor.width - 2 * gaps_out) / self.config.columns;
                     let row_height = (self.monitor.height
                         - (gaps_out * 2)
-                        - self.waybar_height
-                        - self.border_width)
-                        / self.rows;
+                        - self.config.waybar_height
+                        - self.config.border_width)
+                        / self.config.rows;
                     let mut new_width = (((x1 + 1) - x0) as u16 * col_width) - gaps_in;
                     let mut new_height = ((y1 + 1) - y0) as u16 * row_height - gaps_in;
                     let mut left_ofs = self.monitor.x as u16 + gaps_out + (x0 as u16 * col_width);
                     let mut top_ofs = self.monitor.y as u16
                         + gaps_out
-                        + self.waybar_height
+                        + self.config.waybar_height
                         + (y0 as u16 * row_height);
                     if x0 > 0 {
                         left_ofs += gaps_in;
@@ -225,10 +219,10 @@ impl EguiOverlay for AppState {
                         top_ofs += gaps_in;
                         new_height -= gaps_in;
                     }
-                    if x1 as u16 == self.columns {
+                    if x1 as u16 == self.config.columns {
                         new_width -= gaps_out;
                     }
-                    if y1 as u16 == self.rows {
+                    if y1 as u16 == self.config.rows {
                         new_height -= gaps_out;
                     }
 
@@ -272,6 +266,7 @@ impl EguiOverlay for AppState {
                     ))
                     .expect("Should be resized naow.");
 
+                    self.config.save();
                     glfw_backend.window.set_should_close(true)
                 }
             });
