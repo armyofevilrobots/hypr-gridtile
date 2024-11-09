@@ -1,11 +1,7 @@
 use anyhow::{Context, Result};
-use dirs;
-use hyprland::{
-    data::{Client, Monitor},
-    dispatch::WindowIdentifier,
-    keyword::{Keyword, OptionValue},
-    shared::{HyprDataActive, HyprDataActiveOptional},
-};
+use hyprland::
+    keyword::{Keyword, OptionValue}
+;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -109,7 +105,10 @@ impl AppConfig {
     }
 
     pub fn save(&self) -> Result<()> {
-        let cfgpath = Self::bootstrap()?;
+        let cfgpath = match self.config_path.clone(){
+            Some(cfgpath) => cfgpath,
+            None => Self::bootstrap()?,
+        };
         let var_name = ron::ser::PrettyConfig::default();
         let cfgstr = ron::ser::to_string_pretty(self, var_name)?;
         std::fs::write(cfgpath, cfgstr.as_bytes())?;
@@ -121,8 +120,9 @@ impl AppConfig {
             Ok(cfgpath) => cfgpath,
             Err(_) => Self::bootstrap()?,
         };
-        let cfgfile = std::fs::read_to_string(cfgpath)?;
-        let cfg: AppConfig = ron::de::from_bytes(cfgfile.as_bytes())?;
+        let cfgfile = std::fs::read_to_string(&cfgpath)?;
+        let mut cfg: AppConfig = ron::de::from_bytes(cfgfile.as_bytes())?;
+        cfg.config_path = Some(cfgpath.clone());
         Ok(cfg)
     }
 }

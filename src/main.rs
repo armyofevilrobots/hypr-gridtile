@@ -4,17 +4,14 @@ use egui::{Color32, Vec2, WidgetText};
 use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
 use egui_overlay::EguiOverlay;
 use egui_window_glfw_passthrough::glfw::{Action, Key, WindowEvent};
-use hyprland::dispatch;
-use hyprland::dispatch::Dispatch;
-use hyprland::dispatch::{DispatchType, DispatchType::*};
 use hyprland::{
     data::{Client, Monitor},
-    dispatch::WindowIdentifier,
-    keyword::{Keyword, OptionValue},
     shared::{HyprDataActive, HyprDataActiveOptional},
 };
 
 mod config;
+mod icon;
+mod util;
 
 pub struct AppState {
     pub frame: u64,
@@ -24,30 +21,12 @@ pub struct AppState {
     pub monitor: Monitor,
 }
 
-
 fn main() {
-    use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-    // if RUST_LOG is not set, we will use the following filters
-    tracing_subscriber::registry()
-        .with(fmt::layer())
-        .with(
-            EnvFilter::try_from_default_env()
-                .unwrap_or(EnvFilter::new("warn,wgpu=warn,naga=warn")),
-        )
-        .init();
+    util::init_logging();
     let current = Client::get_active()
         .expect("Failed to get the target client window!")
         .expect("No current valid client window.");
     let monitor = Monitor::get_active().expect("Failed to get the active monitor");
-
-    let border_width: u16 = match Keyword::get("general:border_size")
-        .expect("Failed to get hyprland border settings")
-        .value
-    {
-        OptionValue::Int(border) => border as u16,
-        OptionValue::Float(border) => border as u16,
-        _ => 5,
-    };
 
     let appconfig = AppConfig::load().expect("Failed to load/generate config.");
 
@@ -59,26 +38,6 @@ fn main() {
         monitor,
     };
     egui_overlay::start(app_state);
-    
-}
-
-const ICON_BYTES: &[u8] = include_bytes!("../resources/hypr-gridtile.png");
-
-
-
-fn calc_rowcol_bounds(clicks: &Vec<(usize, usize)>) -> (usize, usize, usize, usize) {
-    if clicks.is_empty() {
-        (999, 999, 999, 999)
-    } else if clicks.len() == 1 {
-        (clicks[0].0, clicks[0].1, clicks[0].0, clicks[0].1)
-    } else {
-        (
-            clicks[0].0.min(clicks[1].0),
-            clicks[0].1.min(clicks[1].1),
-            clicks[1].0.max(clicks[0].0),
-            clicks[1].1.max(clicks[0].1),
-        )
-    }
 }
 
 impl EguiOverlay for AppState {
@@ -88,19 +47,7 @@ impl EguiOverlay for AppState {
         _default_gfx_backend: &mut DefaultGfxBackend, //DefaultGfxBackend,
         glfw_backend: &mut egui_window_glfw_passthrough::GlfwBackend,
     ) {
-        // egui_context.all_styles_mut(|style: &mut Style| {
-        // let text_styles: BTreeMap<TextStyle, FontId> = [
-        //     (TextStyle::Button, FontId::new(25.0, Proportional)),
-        //     (TextStyle::Heading, FontId::new(25.0, Proportional)),
-        //     (TextStyle::Body, FontId::new(20.0, Proportional)),
-        //     (TextStyle::Monospace, FontId::new(12.0, Monospace)),
-        //     (TextStyle::Small, FontId::new(8.0, Proportional)),
-        // ]
-        // .into();
-        // style.text_styles = text_styles.clone();
-        // style.spacing.slider_rail_height=16.;
-        // style.text_styles.insert(TextStyle::Button, FontId::new(16.0, Proportional));
-        // });
+        // Handle all key events we require...
         let evs: Vec<WindowEvent> = glfw_backend.frame_events.clone();
         if !evs.is_empty() {
             for ev in evs {
@@ -122,25 +69,14 @@ impl EguiOverlay for AppState {
                     }
                 }
             }
-        }
+        } //WTAF that's a lot of nesting. Too much lisp lately, friend!
 
         // first frame logic
         if self.frame == 0 {
             glfw_backend.set_title("Hypr-GridTile".to_string());
-            let icon = image::load_from_memory(ICON_BYTES).unwrap().to_rgba8();
-            {
-                let pixels = icon
-                    .pixels()
-                    .map(|pixel| u32::from_le_bytes(pixel.0))
-                    .collect();
-                let icon = egui_window_glfw_passthrough::glfw::PixelImage {
-                    width: icon.width(),
-                    height: icon.height(),
-                    pixels,
-                };
-                glfw_backend.window.set_icon_from_pixels(vec![icon]);
-            }
+            icon::glfw_set_icon(glfw_backend);
         }
+
         let fbsize = glfw_backend.window.get_framebuffer_size();
         // just some controls to show how you can use glfw_backend
         egui::Window::new("Foo")
@@ -165,7 +101,7 @@ impl EguiOverlay for AppState {
                     ui.add(egui::Slider::new(&mut self.config.rows, 1..=3u16));
                 });
 
-                let (x0, y0, x1, y1) = calc_rowcol_bounds(&self.clicks);
+                let (x0, y0, x1, y1) = util::calc_rowcol_bounds(&self.clicks);
 
                 let button_width = (fbsize.0 as f32 - 32.) / self.config.columns as f32;
                 let button_height = (fbsize.1 as f32 - 64.) / self.config.rows as f32;
@@ -191,10 +127,11 @@ impl EguiOverlay for AppState {
                     });
                 }
 
+                // Fill the damn thing up.
                 ui.allocate_space(ui.available_size());
 
                 if self.clicks.len() >= 2 {
-                    let (x0, y0, x1, y1) = calc_rowcol_bounds(&self.clicks);
+                    let (x0, y0, x1, y1) = util::calc_rowcol_bounds(&self.clicks);
                     // Set the window position and bail out.
                     let gaps_in = self.config.margin;
                     let gaps_out = self.config.margin;
@@ -227,46 +164,10 @@ impl EguiOverlay for AppState {
                     }
 
                     // Force the current client to float.
-                    let window_id = WindowIdentifier::Address(self.target_client.address.clone());
-                    if !self.target_client.floating {
-                        dispatch!(ToggleFloating, Some(window_id.clone()))
-                            .expect("This better be floating now eh?!");
-                    }
+                    util::move_and_resize_hypr_win(&self.target_client, left_ofs, top_ofs, new_width, new_height);
 
-                    Dispatch::call(ResizeWindowPixel(
-                        dispatch::Position::Exact(
-                            new_width.try_into().unwrap(),
-                            new_height.try_into().unwrap(),
-                        ),
-                        window_id.clone(),
-                    ))
-                    .expect("Should be resized naow.");
-                    Dispatch::call(ResizeWindowPixel(
-                        dispatch::Position::Exact(
-                            new_width.try_into().unwrap(),
-                            new_height.try_into().unwrap(),
-                        ),
-                        window_id.clone(),
-                    ))
-                    .expect("Should be resized naow.");
-                    Dispatch::call(MoveWindowPixel(
-                        dispatch::Position::Exact(
-                            left_ofs.try_into().unwrap(),
-                            top_ofs.try_into().unwrap(),
-                        ),
-                        window_id.clone(),
-                    ))
-                    .expect("Should be resized naow.");
-                    Dispatch::call(MoveWindowPixel(
-                        dispatch::Position::Exact(
-                            left_ofs.try_into().unwrap(),
-                            top_ofs.try_into().unwrap(),
-                        ),
-                        window_id.clone(),
-                    ))
-                    .expect("Should be resized naow.");
 
-                    self.config.save();
+                    self.config.save().expect("Failed to save config!");
                     glfw_backend.window.set_should_close(true)
                 }
             });
