@@ -1,5 +1,5 @@
-use egui::{Color32, Style, Vec2, WidgetText};
-use egui::{FontFamily, FontId, RichText, TextStyle};
+use egui::{Color32, Vec2, WidgetText};
+use egui::RichText;
 use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
 use egui_overlay::EguiOverlay;
 use egui_window_glfw_passthrough::glfw::{Action, Key, WindowEvent};
@@ -12,9 +12,8 @@ use hyprland::{
     keyword::{Keyword, OptionValue},
     shared::{HyprDataActive, HyprDataActiveOptional},
 };
-use image;
-use std::collections::BTreeMap;
-use FontFamily::{Monospace, Proportional};
+// use std::collections::BTreeMap;
+// use FontFamily::{Monospace, Proportional};
 
 fn main() {
     use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -50,10 +49,10 @@ fn main() {
         frame: 0,
         columns: 4,
         rows: 2,
-        keeb: keeb,
+        keeb,
         clicks: Vec::new(),
         target_client: current,
-        monitor: monitor,
+        monitor,
         border_width,
         margin,
         waybar_height,
@@ -75,7 +74,7 @@ pub struct AppState {
 }
 
 fn calc_rowcol_bounds(clicks: &Vec<(usize, usize)>) -> (usize, usize, usize, usize) {
-    if clicks.len() == 0 {
+    if clicks.is_empty() {
         (999, 999, 999, 999)
     } else if clicks.len() == 1 {
         (clicks[0].0, clicks[0].1, clicks[0].0, clicks[0].1)
@@ -96,7 +95,7 @@ impl EguiOverlay for AppState {
         _default_gfx_backend: &mut DefaultGfxBackend, //DefaultGfxBackend,
         glfw_backend: &mut egui_window_glfw_passthrough::GlfwBackend,
     ) {
-        egui_context.all_styles_mut(|style: &mut Style| {
+        // egui_context.all_styles_mut(|style: &mut Style| {
             // let text_styles: BTreeMap<TextStyle, FontId> = [
             //     (TextStyle::Button, FontId::new(25.0, Proportional)),
             //     (TextStyle::Heading, FontId::new(25.0, Proportional)),
@@ -108,10 +107,9 @@ impl EguiOverlay for AppState {
             // style.text_styles = text_styles.clone();
             // style.spacing.slider_rail_height=16.;
             // style.text_styles.insert(TextStyle::Button, FontId::new(16.0, Proportional));
-        });
+        // });
         let evs: Vec<WindowEvent> = glfw_backend.frame_events.clone();
-        if evs.len() > 0 {
-            // println!("EVS: {:?}", &evs);
+        if !evs.is_empty() {
             for ev in evs {
                 if let WindowEvent::Key(key, _code, Action::Press, _) = ev {
                     if key == Key::Escape {
@@ -120,8 +118,6 @@ impl EguiOverlay for AppState {
                 }
                 if let WindowEvent::Key(key, _code, Action::Release, _) = ev {
                     if let Some(name) = key.get_name() {
-                        // println!("That's a {}", name);
-                        // OK, brute force which key it is.
                         for row in 0..self.rows as usize {
                             for col in 0..self.columns as usize {
                                 if self.keeb[row][col].to_uppercase() == name.to_uppercase() {
@@ -183,7 +179,7 @@ impl EguiOverlay for AppState {
                 for row in 0..self.rows as usize {
                     ui.horizontal(|ui| {
                         for col in 0..self.columns as usize {
-                            let mut button = egui::Button::new(WidgetText::RichText(
+                            let button = egui::Button::new(WidgetText::RichText(
                                 RichText::new(self.keeb[row][col].clone()).size(32.),
                             ))
                             .min_size(Vec2::new(button_width - 16., button_height - 16.));
@@ -279,15 +275,6 @@ impl EguiOverlay for AppState {
                     glfw_backend.window.set_should_close(true)
                 }
             });
-
-        // here you decide if you want to be passthrough or not.
-        if egui_context.wants_pointer_input() || egui_context.wants_keyboard_input() {
-            // we need input, so we need the window to be NOT passthrough
-            glfw_backend.set_passthrough(false);
-        } else {
-            // we don't care about input, so the window can be passthrough now
-            glfw_backend.set_passthrough(true)
-        }
         egui_context.request_repaint();
     }
 }

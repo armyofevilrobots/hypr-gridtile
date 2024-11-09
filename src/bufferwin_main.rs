@@ -1,20 +1,15 @@
-use egui::{Color32, Style, Vec2, WidgetText};
-use egui::{FontFamily, FontId, RichText, TextStyle};
 use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
 use egui_overlay::EguiOverlay;
 use egui_window_glfw_passthrough::glfw::{Action, Key, WindowEvent};
 use hyprland::dispatch;
 use hyprland::dispatch::Dispatch;
-use hyprland::dispatch::{DispatchType, DispatchType::*};
+use hyprland::dispatch::DispatchType;
 use hyprland::{
-    data::{Client, Monitor},
+    data::Client,
     dispatch::WindowIdentifier,
-    keyword::{Keyword, OptionValue},
-    shared::{HyprDataActive, HyprDataActiveOptional},
+    shared::HyprDataActiveOptional,
 };
-use image;
-use std::collections::BTreeMap;
-use FontFamily::{Monospace, Proportional};
+
 
 fn main() {
     use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -74,8 +69,7 @@ impl EguiOverlay for BufferWinState {
 
 
         let evs: Vec<WindowEvent> = glfw_backend.frame_events.clone();
-        if evs.len() > 0 {
-            // println!("EVS: {:?}", &evs);
+        if !evs.is_empty() {
             for ev in evs {
                 if let WindowEvent::Key(key, _code, Action::Press, _) = ev {
                     if key == Key::Escape || key == Key::Q || key == Key::X {
@@ -85,14 +79,6 @@ impl EguiOverlay for BufferWinState {
             }
         }
 
-        // here you decide if you want to be passthrough or not.
-        if egui_context.wants_pointer_input() || egui_context.wants_keyboard_input() {
-            // we need input, so we need the window to be NOT passthrough
-            glfw_backend.set_passthrough(false);
-        } else {
-            // we don't care about input, so the window can be passthrough now
-            glfw_backend.set_passthrough(true)
-        }
         egui_context.request_repaint();
     }
 }
