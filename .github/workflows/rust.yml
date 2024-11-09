@@ -33,7 +33,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
     - name: move build
-      run: mv ./target/release/hypr-gridtile ./
+      run: mv ./target/release/hypr-gridtile ./target/release/hypr-bufferwin ./
     - name: Zip
       run: zip -r ${{ github.event.repository.name }}-${{ github.ref_name}}-${{ runner.os }}-${{ runner.arch }}.zip README.md hypr-gridtile
     - name: Upload Release Asset

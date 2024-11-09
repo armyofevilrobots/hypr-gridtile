@@ -2,7 +2,7 @@ use egui::{Color32, Style, Vec2, WidgetText};
 use egui::{FontFamily, FontId, RichText, TextStyle};
 use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
 use egui_overlay::EguiOverlay;
-use egui_window_glfw_passthrough::glfw::{Action, WindowEvent};
+use egui_window_glfw_passthrough::glfw::{Action, Key, WindowEvent};
 use hyprland::dispatch;
 use hyprland::dispatch::Dispatch;
 use hyprland::dispatch::{DispatchType, DispatchType::*};
@@ -46,7 +46,7 @@ fn main() {
         OptionValue::Float(border) => border as u16,
         _ => 5,
     };
-    egui_overlay::start(HelloWorld {
+    egui_overlay::start(AppState {
         frame: 0,
         columns: 4,
         rows: 2,
@@ -60,7 +60,8 @@ fn main() {
     });
 }
 const ICON_BYTES: &[u8] = include_bytes!("../resources/hypr-gridtile.png");
-pub struct HelloWorld {
+
+pub struct AppState {
     pub frame: u64,
     pub columns: u16,
     pub rows: u16,
@@ -88,7 +89,7 @@ fn calc_rowcol_bounds(clicks: &Vec<(usize, usize)>) -> (usize, usize, usize, usi
     }
 }
 
-impl EguiOverlay for HelloWorld {
+impl EguiOverlay for AppState {
     fn gui_run(
         &mut self,
         egui_context: &egui::Context,
@@ -112,8 +113,12 @@ impl EguiOverlay for HelloWorld {
         if evs.len() > 0 {
             // println!("EVS: {:?}", &evs);
             for ev in evs {
+                if let WindowEvent::Key(key, _code, Action::Press, _) = ev {
+                    if key == Key::Escape {
+                        glfw_backend.window.set_should_close(true);
+                    }
+                }
                 if let WindowEvent::Key(key, _code, Action::Release, _) = ev {
-                    // println!("Matched key event with {:?}:{:?} as str ", key, key);
                     if let Some(name) = key.get_name() {
                         // println!("That's a {}", name);
                         // OK, brute force which key it is.
@@ -131,6 +136,7 @@ impl EguiOverlay for HelloWorld {
 
         // first frame logic
         if self.frame == 0 {
+            glfw_backend.set_title("Hypr-GridTile".to_string());
             let icon = image::load_from_memory(ICON_BYTES).unwrap().to_rgba8();
             {
                 let pixels = icon
@@ -177,10 +183,11 @@ impl EguiOverlay for HelloWorld {
                 for row in 0..self.rows as usize {
                     ui.horizontal(|ui| {
                         for col in 0..self.columns as usize {
-                            let mut button = egui::Button::new(WidgetText::RichText(RichText::new(self.keeb[row][col].clone()).size(32.)))
-                                
-                                .min_size(Vec2::new(button_width - 16., button_height - 16.));
-                            
+                            let mut button = egui::Button::new(WidgetText::RichText(
+                                RichText::new(self.keeb[row][col].clone()).size(32.),
+                            ))
+                            .min_size(Vec2::new(button_width - 16., button_height - 16.));
+
                             let button = if col >= x0 && col <= x1 && row >= y0 && row <= y1 {
                                 button.fill(Color32::from_rgb(255, 255, 255))
                             } else {
