@@ -1,6 +1,10 @@
 hypr-gridtile
 =============
 
+![Build Status](https://github.com/armyofevilrobots/hypr-gridtile/actions/workflows/rust.yml/badge.svg)
+
+![](resources/hypr-gridtile-demo.webp)
+
 This is a useful little utility which tiles floating windows. Yes, that sounds
 just as wrong to me, as it does to you.
 
