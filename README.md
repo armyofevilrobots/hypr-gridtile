@@ -39,6 +39,14 @@ and optionally also:
 bind = $mainMod ALT, B, exec, ~/.local/bin/hypr-bufferwin # Spacer window launch
 ```
 
+Configuration
+-------------
+
+The config file lives at `$HOME/.config/hypr-gridtile/hypr-gridtile.ron` and is
+in [RON](https://github.com/ron-rs/ron) notation. Fields should be fairly
+self-explanatory. Note that, at this time, only a TOP waybar is supported. I'll
+be adding support for bottom waybars via negative waybar-height values.
+
 Status
 ------
 

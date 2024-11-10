@@ -6,6 +6,7 @@ default-run = "hypr-gridtile"
 
 [dependencies]
 egui = "0.29.1"
+egui_extras = "0.29.1"
 dirs = "5.0.1"
 egui_overlay = {version="0.9.0"}
 egui_render_wgpu = "0.9.0"

@@ -18,7 +18,7 @@ fn main() {
         .with(fmt::layer())
         .with(
             EnvFilter::try_from_default_env()
-                .unwrap_or(EnvFilter::new("debug,wgpu=warn,naga=warn")),
+                .unwrap_or(EnvFilter::new("debug,glium=debug,wgpu=warn,naga=warn")),
         )
         .init();
     egui_overlay::start(BufferWinState {
@@ -42,6 +42,7 @@ impl EguiOverlay for BufferWinState {
 
         // first frame logic
         if self.frame == 0 {
+
             if let Ok(Some(self_client)) = Client::get_active() {
                 if self_client.floating{
                     dispatch!(

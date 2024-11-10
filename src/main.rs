@@ -1,6 +1,7 @@
 use config::AppConfig;
-use egui::RichText;
-use egui::{Color32, Vec2, WidgetText};
+use egui::{Color32, Resize, Sense, Spacing, Vec2, WidgetText};
+use egui::{Margin, RichText};
+use egui_extras::{Size, StripBuilder};
 use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
 use egui_overlay::EguiOverlay;
 use egui_window_glfw_passthrough::glfw::{Action, Key, WindowEvent};
@@ -71,13 +72,19 @@ impl EguiOverlay for AppState {
             }
         } //WTAF that's a lot of nesting. Too much lisp lately, friend!
 
+        // This doesn't work for some weird reason?
+        // if !glfw_backend.window.is_maximized(){
+        //     glfw_backend.window.maximize();
+        // }
+
         // first frame logic
+        let fbsize = glfw_backend.window.get_framebuffer_size();
         if self.frame == 0 {
             glfw_backend.set_title("Hypr-GridTile".to_string());
             icon::glfw_set_icon(glfw_backend);
+            println!("fbsize: {:?}", fbsize);
         }
 
-        let fbsize = glfw_backend.window.get_framebuffer_size();
         // just some controls to show how you can use glfw_backend
         egui::Window::new("Foo")
             .collapsible(false)
@@ -86,49 +93,62 @@ impl EguiOverlay for AppState {
             .min_size(Vec2::new(fbsize.0 as f32, fbsize.1 as f32))
             // .frame(egui::Frame::default().)
             .frame(egui::Frame {
-                fill: egui::Color32::TRANSPARENT,
                 inner_margin: egui::Margin::same(16.0),
                 outer_margin: egui::Margin::same(16.0),
+                // fill: Color32::from_white_alpha(20),
                 ..Default::default()
             })
             .show(egui_context, |ui| {
                 self.frame += 1;
 
-                ui.horizontal(|ui| {
-                    ui.label("Columns:");
-                    ui.add(egui::Slider::new(&mut self.config.columns, 1..=9u16));
-                    ui.label("Rows:");
-                    ui.add(egui::Slider::new(&mut self.config.rows, 1..=3u16));
+                ui.vertical(|ui| {
+                    egui::Grid::new("Config")
+                        .with_row_color(|_, _| Some(Color32::from_black_alpha(220)))
+                        // .num_columns(4)
+                        .spacing(Vec2::new(16., 0.))
+                        .show(ui, |ui| {
+                            ui.allocate_space(Vec2::new(0., 0.));
+                            ui.end_row();
+                            ui.label("Columns:");
+                            ui.add(egui::Slider::new(&mut self.config.columns, 1..=9u16));
+                            ui.label("Rows:");
+                            ui.add(egui::Slider::new(&mut self.config.rows, 1..=3u16));
+                            ui.end_row();
+                            ui.allocate_space(Vec2::new(0., 0.));
+                            ui.end_row();
+                            
+                        });
+                    ui.add_space(5.);
+
+                    let button_width = (fbsize.0 as f32 - 32.) / self.config.columns as f32;
+                    let button_height = (fbsize.1 as f32 - 64. - 16.) / self.config.rows as f32;
+
+                    let (x0, y0, x1, y1) = util::calc_rowcol_bounds(&self.clicks);
+
+                    for row in 0..self.config.rows as usize {
+                        ui.horizontal(|ui| {
+                            for col in 0..self.config.columns as usize {
+                                let button = egui::Button::new(WidgetText::RichText(
+                                    RichText::new(self.config.keeb[row][col].clone()).size(32.),
+                                ))
+                                .min_size(Vec2::new(button_width - 16., button_height - 16.));
+
+                                let button = if col >= x0 && col <= x1 && row >= y0 && row <= y1 {
+                                    button.fill(Color32::from_rgb(255, 255, 255))
+                                } else {
+                                    button
+                                };
+
+                                if ui.add(button).clicked() {
+                                    self.clicks.push((col, row));
+                                };
+                            }
+                        });
+                    }
+
+                    // Fill the damn thing up.
+                    // ui.allocate_space(ui.available_size());
                 });
-
-                let (x0, y0, x1, y1) = util::calc_rowcol_bounds(&self.clicks);
-
-                let button_width = (fbsize.0 as f32 - 32.) / self.config.columns as f32;
-                let button_height = (fbsize.1 as f32 - 64.) / self.config.rows as f32;
-
-                for row in 0..self.config.rows as usize {
-                    ui.horizontal(|ui| {
-                        for col in 0..self.config.columns as usize {
-                            let button = egui::Button::new(WidgetText::RichText(
-                                RichText::new(self.config.keeb[row][col].clone()).size(32.),
-                            ))
-                            .min_size(Vec2::new(button_width - 16., button_height - 16.));
-
-                            let button = if col >= x0 && col <= x1 && row >= y0 && row <= y1 {
-                                button.fill(Color32::from_rgb(255, 255, 255))
-                            } else {
-                                button
-                            };
-
-                            if ui.add(button).clicked() {
-                                self.clicks.push((col, row));
-                            };
-                        }
-                    });
-                }
-
-                // Fill the damn thing up.
-                ui.allocate_space(ui.available_size());
 
                 if self.clicks.len() >= 2 {
                     let (x0, y0, x1, y1) = util::calc_rowcol_bounds(&self.clicks);
@@ -164,8 +184,13 @@ impl EguiOverlay for AppState {
                     }
 
                     // Force the current client to float.
-                    util::move_and_resize_hypr_win(&self.target_client, left_ofs, top_ofs, new_width, new_height);
-
+                    util::move_and_resize_hypr_win(
+                        &self.target_client,
+                        left_ofs,
+                        top_ofs,
+                        new_width,
+                        new_height,
+                    );
 
                     self.config.save().expect("Failed to save config!");
                     glfw_backend.window.set_should_close(true)
