@@ -14,12 +14,15 @@ mod config;
 mod icon;
 mod util;
 
+const NOT_CLOSING:u64 =u64::MAX;
+
 pub struct AppState {
     pub frame: u64,
     pub config: config::AppConfig,
     pub clicks: Vec<(usize, usize)>,
     pub target_client: Client,
     pub monitor: Monitor,
+    pub close_at: u64,
 }
 
 fn main() {
@@ -37,6 +40,7 @@ fn main() {
         clicks: Vec::new(),
         target_client: current,
         monitor,
+        close_at: NOT_CLOSING,
     };
     egui_overlay::start(app_state);
 }
@@ -150,7 +154,7 @@ impl EguiOverlay for AppState {
                     // ui.allocate_space(ui.available_size());
                 });
 
-                if self.clicks.len() >= 2 {
+                if self.clicks.len() >= 2 && self.close_at == NOT_CLOSING{
                     let (x0, y0, x1, y1) = util::calc_rowcol_bounds(&self.clicks);
                     // Set the window position and bail out.
                     let gaps_in = self.config.margin;
@@ -193,7 +197,12 @@ impl EguiOverlay for AppState {
                     );
 
                     self.config.save().expect("Failed to save config!");
-                    glfw_backend.window.set_should_close(true)
+                    self.close_at = self.frame+24;
+                    glfw_backend.window.focus();
+                }
+                if self.close_at <= self.frame{
+                    glfw_backend.window.set_should_close(true);
+                    self.close_at = NOT_CLOSING;
                 }
             });
         egui_context.request_repaint();
