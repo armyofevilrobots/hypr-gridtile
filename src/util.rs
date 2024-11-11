@@ -1,4 +1,4 @@
-use hyprland::data::{Client, FullscreenMode};
+use hyprland::data::Client;
 use hyprland::dispatch::{FullscreenType, WindowIdentifier};
 use hyprland::dispatch;
 use hyprland::dispatch::Dispatch;
@@ -32,7 +32,6 @@ pub(crate) fn init_logging() {
 
 
 pub(crate) fn force_fullscreen_window(target_client: &Client){
-    let window_id: WindowIdentifier = WindowIdentifier::Address(target_client.address.clone());
     if (target_client.fullscreen as u8) < 2 {
     dispatch!(ToggleFullscreen, FullscreenType::Real)
         .expect("This better be focused now eh?!");

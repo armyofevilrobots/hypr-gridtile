@@ -7,7 +7,6 @@ use egui::{Align2, Color32, Vec2, WidgetText};
 use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
 use egui_overlay::EguiOverlay;
 use egui_window_glfw_passthrough::glfw::{Action, Key, WindowEvent};
-use hyprland::dispatch;
 use hyprland::{
     data::{Client, Monitor},
     shared::{HyprDataActive, HyprDataActiveOptional},
@@ -60,9 +59,8 @@ impl EguiOverlay for AppState {
         glfw_backend: &mut egui_window_glfw_passthrough::GlfwBackend,
     ) {
         // Handle all key events we require...
-        if !glfw_backend.window.is_focused(){
+        if !glfw_backend.window.is_focused() {
             glfw_backend.window.focus();
-            
         }
         let evs: Vec<WindowEvent> = glfw_backend.frame_events.clone();
         if !evs.is_empty() {
@@ -70,6 +68,7 @@ impl EguiOverlay for AppState {
                 if let WindowEvent::Key(key, _code, Action::Press, _) = ev {
                     if key == Key::Escape {
                         glfw_backend.window.set_should_close(true);
+                        self.config.save().expect("Failed to save config!");
                     }
                 }
                 if let WindowEvent::Key(key, _code, Action::Release, _) = ev {
@@ -87,18 +86,16 @@ impl EguiOverlay for AppState {
             }
         } //WTAF that's a lot of nesting. Too much lisp lately, friend!
 
-
         // first frame logic
         let fbsize = glfw_backend.window.get_framebuffer_size();
         if self.frame == 0 {
             glfw_backend.set_title("Hypr-GridTile".to_string());
             icon::glfw_set_icon(glfw_backend);
             // println!("fbsize: {:?}", fbsize);
-        }
-        else if self.frame == 1 {
-            if let Some(client) = Client::get_active().unwrap_or(None){
+        } else if self.frame == 1 {
+            if let Some(client) = Client::get_active().unwrap_or(None) {
                 self.self_client = Some(client.clone());
-                if self.config.fullscreen_at_start{
+                if self.config.fullscreen_at_start {
                     util::force_fullscreen_window(&client);
                 }
             }
@@ -137,7 +134,10 @@ impl EguiOverlay for AppState {
                             ui.add(egui::Slider::new(&mut self.config.columns, 1..=9u16));
                             ui.label("Rows:");
                             ui.add(egui::Slider::new(&mut self.config.rows, 1..=3u16));
-                            ui.checkbox(&mut self.config.fullscreen_at_start, "Fullscreen at start?");
+                            ui.checkbox(
+                                &mut self.config.fullscreen_at_start,
+                                "Fullscreen at start?",
+                            );
                             ui.end_row();
                             ui.allocate_space(Vec2::new(0., 0.));
                             ui.end_row();
@@ -226,7 +226,7 @@ impl EguiOverlay for AppState {
                             break;
                         };
                         thread::sleep(Duration::from_millis(50));
-                        if let Some(client) = self.self_client.clone(){
+                        if let Some(client) = self.self_client.clone() {
                             // println!("Focusing myself");
                             util::force_focus_window(&client);
                         }
@@ -235,10 +235,10 @@ impl EguiOverlay for AppState {
                     // Ensure a redraw with the tile position before we do the
                     // move and resize stuff.
 
-                    self.config.save().expect("Failed to save config!");
                     self.close_at = self.frame + 20;
+                    self.config.save().expect("Failed to save config!");
                     // glfw_backend.window.focus();
-                    if let Some(client) = self.self_client.clone(){
+                    if let Some(client) = self.self_client.clone() {
                         // println!("Focusing myself");
                         util::force_focus_window(&client);
                     }
