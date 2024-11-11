@@ -1,10 +1,13 @@
+use std::thread;
+use std::time::Duration;
+
 use config::AppConfig;
-use egui::{Color32, Resize, Sense, Spacing, Vec2, WidgetText};
-use egui::{Margin, RichText};
-use egui_extras::{Size, StripBuilder};
+use egui::RichText;
+use egui::{Align2, Color32, Vec2, WidgetText};
 use egui_overlay::egui_render_three_d::ThreeDBackend as DefaultGfxBackend;
 use egui_overlay::EguiOverlay;
 use egui_window_glfw_passthrough::glfw::{Action, Key, WindowEvent};
+use hyprland::dispatch;
 use hyprland::{
     data::{Client, Monitor},
     shared::{HyprDataActive, HyprDataActiveOptional},
@@ -14,15 +17,17 @@ mod config;
 mod icon;
 mod util;
 
-const NOT_CLOSING:u64 =u64::MAX;
+const NOT_CLOSING: u64 = u64::MAX;
 
 pub struct AppState {
     pub frame: u64,
     pub config: config::AppConfig,
     pub clicks: Vec<(usize, usize)>,
     pub target_client: Client,
+    pub self_client: Option<Client>,
     pub monitor: Monitor,
     pub close_at: u64,
+    pub do_tile: bool,
 }
 
 fn main() {
@@ -39,8 +44,10 @@ fn main() {
         config: appconfig,
         clicks: Vec::new(),
         target_client: current,
+        self_client: None,
         monitor,
         close_at: NOT_CLOSING,
+        do_tile: false,
     };
     egui_overlay::start(app_state);
 }
@@ -53,6 +60,10 @@ impl EguiOverlay for AppState {
         glfw_backend: &mut egui_window_glfw_passthrough::GlfwBackend,
     ) {
         // Handle all key events we require...
+        if !glfw_backend.window.is_focused(){
+            glfw_backend.window.focus();
+            
+        }
         let evs: Vec<WindowEvent> = glfw_backend.frame_events.clone();
         if !evs.is_empty() {
             for ev in evs {
@@ -76,30 +87,38 @@ impl EguiOverlay for AppState {
             }
         } //WTAF that's a lot of nesting. Too much lisp lately, friend!
 
-        // This doesn't work for some weird reason?
-        // if !glfw_backend.window.is_maximized(){
-        //     glfw_backend.window.maximize();
-        // }
 
         // first frame logic
         let fbsize = glfw_backend.window.get_framebuffer_size();
         if self.frame == 0 {
             glfw_backend.set_title("Hypr-GridTile".to_string());
             icon::glfw_set_icon(glfw_backend);
-            println!("fbsize: {:?}", fbsize);
+            // println!("fbsize: {:?}", fbsize);
         }
+        else if self.frame == 1 {
+            if let Some(client) = Client::get_active().unwrap_or(None){
+                self.self_client = Some(client);
+                // println!("My self client is now {:?}", self.self_client);
+            }
+            
+        }
+        egui_context.all_styles_mut(|style| {
+            style.visuals.window_fill = Color32::from_black_alpha(120);
+            style.visuals.dark_mode = true;
+        });
 
         // just some controls to show how you can use glfw_backend
         egui::Window::new("Foo")
             .collapsible(false)
             .title_bar(false)
-            .resizable([true, true])
-            .min_size(Vec2::new(fbsize.0 as f32, fbsize.1 as f32))
-            // .frame(egui::Frame::default().)
+            .anchor(Align2::LEFT_TOP, Vec2::new(0., 0.))
+            .resizable([false, false])
+            .min_size(Vec2::new(fbsize.0 as f32 / 0.72, fbsize.1 as f32 / 0.72))
+            .fixed_size(Vec2::new(fbsize.0 as f32 + 32., fbsize.1 as f32 + 32.))
             .frame(egui::Frame {
                 inner_margin: egui::Margin::same(16.0),
-                outer_margin: egui::Margin::same(16.0),
-                // fill: Color32::from_white_alpha(20),
+                outer_margin: egui::Margin::same(8.0),
+                fill: Color32::from_black_alpha(20),
                 ..Default::default()
             })
             .show(egui_context, |ui| {
@@ -120,7 +139,6 @@ impl EguiOverlay for AppState {
                             ui.end_row();
                             ui.allocate_space(Vec2::new(0., 0.));
                             ui.end_row();
-                            
                         });
                     ui.add_space(5.);
 
@@ -146,15 +164,17 @@ impl EguiOverlay for AppState {
                                 if ui.add(button).clicked() {
                                     self.clicks.push((col, row));
                                 };
+                                ui.add_space(8.);
                             }
                         });
+                        ui.add_space(8.);
                     }
 
                     // Fill the damn thing up.
                     // ui.allocate_space(ui.available_size());
                 });
 
-                if self.clicks.len() >= 2 && self.close_at == NOT_CLOSING{
+                if self.do_tile {
                     let (x0, y0, x1, y1) = util::calc_rowcol_bounds(&self.clicks);
                     // Set the window position and bail out.
                     let gaps_in = self.config.margin;
@@ -188,19 +208,48 @@ impl EguiOverlay for AppState {
                     }
 
                     // Force the current client to float.
-                    util::move_and_resize_hypr_win(
-                        &self.target_client,
-                        left_ofs,
-                        top_ofs,
-                        new_width,
-                        new_height,
-                    );
+                    util::force_float_window(&self.target_client);
+                    for _i in 0..10 {
+                        // println!("Resizing and moving...");
+                        util::move_and_resize_hypr_win(
+                            &self.target_client,
+                            left_ofs,
+                            top_ofs,
+                            new_width,
+                            new_height,
+                        );
+                        if self.target_client.size == (new_width as i16, new_height as i16)
+                            && self.target_client.at == (left_ofs as i16, top_ofs as i16)
+                        {
+                            break;
+                        };
+                        thread::sleep(Duration::from_millis(50));
+                        if let Some(client) = self.self_client.clone(){
+                            // println!("Focusing myself");
+                            util::force_focus_window(&client);
+                        }
+                    }
+
+                    // Ensure a redraw with the tile position before we do the
+                    // move and resize stuff.
 
                     self.config.save().expect("Failed to save config!");
-                    self.close_at = self.frame+24;
-                    glfw_backend.window.focus();
+                    self.close_at = self.frame + 20;
+                    // glfw_backend.window.focus();
+                    if let Some(client) = self.self_client.clone(){
+                        // println!("Focusing myself");
+                        util::force_focus_window(&client);
+                    }
+                    // else{
+                    //     println!("No current self window to focus.");
+                    // }
+
+                    self.do_tile = false;
                 }
-                if self.close_at <= self.frame{
+                if self.clicks.len() >= 2 && self.close_at == NOT_CLOSING {
+                    self.do_tile = true;
+                }
+                if self.close_at <= self.frame {
                     glfw_backend.window.set_should_close(true);
                     self.close_at = NOT_CLOSING;
                 }

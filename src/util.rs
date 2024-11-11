@@ -30,12 +30,26 @@ pub(crate) fn init_logging() {
         .init();
 }
 
-pub(crate) fn move_and_resize_hypr_win(target_client: &Client, left_ofs: u16, top_ofs: u16, new_width: u16, new_height: u16) {
+pub(crate) fn force_focus_window(target_client: &Client){
     let window_id: WindowIdentifier = WindowIdentifier::Address(target_client.address.clone());
+    // if !target_client.focus_history_id==0 {
+        dispatch!(FocusWindow, window_id.clone())
+            .expect("This better be focused now eh?!");
+    // }
+}
+
+
+pub(crate) fn force_float_window(target_client: &Client){
+    let window_id: WindowIdentifier = WindowIdentifier::Address(target_client.address.clone());
+    
     if !target_client.floating {
         dispatch!(ToggleFloating, Some(window_id.clone()))
             .expect("This better be floating now eh?!");
     }
+}
+
+pub(crate) fn move_and_resize_hypr_win(target_client: &Client, left_ofs: u16, top_ofs: u16, new_width: u16, new_height: u16) {
+    let window_id: WindowIdentifier = WindowIdentifier::Address(target_client.address.clone());
 
     Dispatch::call(ResizeWindowPixel(
         dispatch::Position::Exact(

@@ -50,7 +50,7 @@ be adding support for bottom waybars via negative waybar-height values.
 Status
 ------
 
-Currently, this little project has had a grand total of MAYBE 4 hours of work,
+Currently, this little project has had a grand total of MAYBE ~4~ 8 hours of work,
 so it's missing a ton of features that I'm gonna backfill over the next few days:
 
  1. ~Persistent configuration. It will remember how many rows and columns your
