@@ -97,10 +97,11 @@ impl EguiOverlay for AppState {
         }
         else if self.frame == 1 {
             if let Some(client) = Client::get_active().unwrap_or(None){
-                self.self_client = Some(client);
-                // println!("My self client is now {:?}", self.self_client);
+                self.self_client = Some(client.clone());
+                if self.config.fullscreen_at_start{
+                    util::force_fullscreen_window(&client);
+                }
             }
-            
         }
         egui_context.all_styles_mut(|style| {
             style.visuals.window_fill = Color32::from_black_alpha(120);
@@ -136,6 +137,7 @@ impl EguiOverlay for AppState {
                             ui.add(egui::Slider::new(&mut self.config.columns, 1..=9u16));
                             ui.label("Rows:");
                             ui.add(egui::Slider::new(&mut self.config.rows, 1..=3u16));
+                            ui.checkbox(&mut self.config.fullscreen_at_start, "Fullscreen at start?");
                             ui.end_row();
                             ui.allocate_space(Vec2::new(0., 0.));
                             ui.end_row();

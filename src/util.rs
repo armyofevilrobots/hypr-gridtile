@@ -1,5 +1,5 @@
-use hyprland::data::Client;
-use hyprland::dispatch::WindowIdentifier;
+use hyprland::data::{Client, FullscreenMode};
+use hyprland::dispatch::{FullscreenType, WindowIdentifier};
 use hyprland::dispatch;
 use hyprland::dispatch::Dispatch;
 use hyprland::dispatch::{DispatchType, DispatchType::*};
@@ -30,11 +30,21 @@ pub(crate) fn init_logging() {
         .init();
 }
 
+
+pub(crate) fn force_fullscreen_window(target_client: &Client){
+    let window_id: WindowIdentifier = WindowIdentifier::Address(target_client.address.clone());
+    if (target_client.fullscreen as u8) < 2 {
+    dispatch!(ToggleFullscreen, FullscreenType::Real)
+        .expect("This better be focused now eh?!");
+    }
+}
+
+
 pub(crate) fn force_focus_window(target_client: &Client){
     let window_id: WindowIdentifier = WindowIdentifier::Address(target_client.address.clone());
     // if !target_client.focus_history_id==0 {
-        dispatch!(FocusWindow, window_id.clone())
-            .expect("This better be focused now eh?!");
+    dispatch!(FocusWindow, window_id.clone())
+        .expect("This better be focused now eh?!");
     // }
 }
 

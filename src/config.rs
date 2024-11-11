@@ -38,6 +38,11 @@ fn default_appconfig_margin() -> u16 {
 fn default_appconfig_waybar_height() -> u16 {
     48
 }
+
+fn default_appconfig_fullscreen() -> bool{
+    false
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default = "default_appconfig_columns")]
@@ -52,8 +57,11 @@ pub struct AppConfig {
     pub margin: u16,
     #[serde(default = "default_appconfig_waybar_height")]
     pub waybar_height: u16,
+    #[serde(default = "default_appconfig_fullscreen")]
+    pub fullscreen_at_start: bool,
     #[serde(skip)]
     config_path: Option<PathBuf>,
+    
 }
 
 impl Default for AppConfig {
@@ -65,7 +73,9 @@ impl Default for AppConfig {
             border_width: default_appconfig_border_width(),
             margin: default_appconfig_margin(),
             waybar_height: default_appconfig_waybar_height(),
+            fullscreen_at_start: false,
             config_path: None,
+            
         }
     }
 }
