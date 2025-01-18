@@ -20,7 +20,8 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 winit = "0.29.0"
 anyhow = "1.0.93"
 ron = "0.8.1"
-
+iced = {version="0.13.1", features=["canvas", "advanced"]}
+rand = "0.8.5"
 
 
 [[bin]]
@@ -30,3 +31,7 @@ path = "src/main.rs"
 [[bin]]
 name = "hypr-bufferwin"
 path = "src/bufferwin_main.rs"
+
+[[bin]]
+name = "iced-test"
+path = "src/iced-main.rs"
